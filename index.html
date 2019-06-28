@@ -22,8 +22,6 @@
                 transform: scaleX(-1);
             }
         </style>
-        <!-- <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script> 
-        <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/posenet"></script> -->
         <script src="tfjs.js"></script> 
         <script src="posenet.js"></script>
     </head>
@@ -32,7 +30,6 @@
         <canvas id="myCanvas" width="600" height="600"></canvas>
         <p>BOXES: <strong id="boxes"></strong></p>
         <p>SCORE: <strong id="score"></strong></p>
-        <!-- <p>DIRECTION: <strong id="direction"></strong></p> -->
     </body>
     <script>
 
@@ -79,16 +76,19 @@
 
         const DOMboxes = document.getElementById('boxes');
         const DOMscore = document.getElementById('score');
-        // const DOMdirection = document.getElementById('direction');
 
         const canvas = document.getElementById('myCanvas');
         const ctx = canvas.getContext('2d');
+
         const upArrow = new Image();
         upArrow.src = 'up.png';
+
         const downArrow = new Image();
         downArrow.src = 'down.png';
+
         const leftArrow = new Image();
         leftArrow.src = 'left.png';
+        
         const rightArrow = new Image();
         rightArrow.src = 'right.png';
 
@@ -96,9 +96,11 @@
         const h = canvas.height;
         const centerX = w/2;
         const centerY = h/2;
+
         const breakableZoneStart = centerX;
         const breakableRightZoneEnd = centerX + (centerX/1.5);
         const breakableLeftZoneEnd = centerX - (centerX/1.5);
+        
         let boxes = 0;
         let score = 0;
 
@@ -108,7 +110,6 @@
         let yDirection = '';
         let movements = [];
 
-        let timeout;
         let direction;
 
         function mostDirection(arr) {
@@ -116,7 +117,7 @@
                 m = [],
                 val = arr[0],
                 i, x;
-            for(i = 0; i < arr.length; i ++) {
+            for( i = 0; i < arr.length; i ++ ) {
                 x = arr[i]
                 if (m[x]) {
                     ++m[x] > max && (max = m[i], val = x);
@@ -135,16 +136,14 @@
         }
 
         const breakDirections = ['toUp', 'toDown', 'toRight', 'toLeft'];
-        // const breakDirections = ['toLeft'];
         const directions = ['right', 'left'];
-        // const directions = ['right'];
 
-        function drawScene() {
-
+        function showGameData() {
             DOMboxes.textContent = boxes;
             DOMscore.textContent = score;
-            // DOMdirection.textContent = aBox.breakDirection;
+        }
 
+        function drawScene() {
             ctx.lineWidth = '1';
             ctx.strokeStyle = '#999999';
             ctx.beginPath();
@@ -159,32 +158,65 @@
             ctx.stroke();
         }
 
+        function ctxDrawImage(img, x, y, w, h) {
+            ctx.drawImage(img, x, y, w, h);
+        }
+
         function Box() {
             this.x = centerX;
             this.y = centerY;
             this.breakDirection = breakDirections[Math.floor(Math.random() * breakDirections.length)];
             this.direction = directions[Math.floor(Math.random() * directions.length)];
-            // this.speed = Math.round(Math.random() * 3) + 2;
+            // this.speed = Math.round(Math.random() * 3) + 2; // Random speed ?
             this.speed = 4;
             this.w = this.h = 1;
-            this.in = false;
+            this.isHandInside = false;
         }
 
         Box.prototype.updatePosition = function() {
-            if (this.direction === 'right') {
+            if ( this.direction === 'right' ) {
                 this.x += this.speed;
             } else {
                 this.x -= this.speed * 2;
             }
             this.w += this.speed;
-
             this.y = centerY - (this.h / 2);
             this.h += this.speed;
             this.drawBox();
         };
 
+        Box.prototype.drawBox = function() {
+            ctx.beginPath();
+            ctx.fillStyle = 'transparent';
+            let image = null;
+            switch ( this.breakDirection ) {
+                case 'toUp':
+                    image = downArrow;
+                    break;
+                case 'toDown':
+                    image = upArrow;
+                    break;
+                case 'toRight':
+                    image = leftArrow;
+                    break;
+                case 'toLeft':
+                    image = rightArrow;
+                    break;
+            }
+            ctxDrawImage(image, this.x, this.y, this.w, this.h);
+            ctx.fillRect(this.x, this.y, this.w, this.h);
+
+            if ( this.isBreakable() ) {
+                ctx.lineWidth = '4';
+                ctx.strokeStyle = 'black';
+                ctx.rect(this.x, this.y, this.w, this.h);
+                ctx.stroke();
+            }
+
+        };
+
         Box.prototype.isBreakable = function(e) {
-            if (this.direction === 'right') {
+            if ( this.direction === 'right' ) {
                 return true;
                 // return this.x > breakableZoneStart && this.x < breakableRightZoneEnd;
             } else {
@@ -193,36 +225,7 @@
             }
         };
 
-        Box.prototype.drawBox = function() {
-            ctx.beginPath();
-            switch(this.breakDirection) {
-                case 'toUp':
-                    ctx.drawImage(downArrow, this.x, this.y, this.w, this.h);
-                    ctx.fillStyle = 'transparent';
-                    break;
-                case 'toDown':
-                    ctx.drawImage(upArrow, this.x, this.y, this.w, this.h);
-                    ctx.fillStyle = 'transparent';
-                    break;
-                case 'toRight':
-                    ctx.drawImage(leftArrow, this.x, this.y, this.w, this.h);
-                    ctx.fillStyle = 'transparent';
-                    break;
-                case 'toLeft':
-                    ctx.drawImage(rightArrow, this.x, this.y, this.w, this.h);
-                    ctx.fillStyle = 'transparent';
-                    break;
-                }
-            ctx.fillRect(this.x, this.y, this.w, this.h);
-            if( this.isBreakable() ) {
-                ctx.lineWidth = '4';
-                ctx.strokeStyle = 'black';
-                ctx.rect(this.x, this.y, this.w, this.h);
-                ctx.stroke();
-            }
-        };
-
-        Box.prototype.isFinished = function() {
+        Box.prototype.isOutOfScreen = function() {
             return this.x > w || this.x + this.w < 0;
         };
 
@@ -243,6 +246,8 @@
             drawScene();
             
             ctx.beginPath();
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = '2';
 
             // eyes
             ctx.lineTo(kp[1].position.x, kp[1].position.y);
@@ -257,23 +262,23 @@
             ctx.lineTo(kp[8].position.x, kp[8].position.y);
             ctx.lineTo(kp[10].position.x, kp[10].position.y);
 
-            // right leg
-            ctx.moveTo(kp[12].position.x, kp[12].position.y);
-            ctx.lineTo(kp[14].position.x, kp[14].position.y);
-            ctx.lineTo(kp[16].position.x, kp[16].position.y);
-
             // left arm
             ctx.moveTo(kp[5].position.x, kp[5].position.y);
             ctx.lineTo(kp[7].position.x, kp[7].position.y);
             ctx.lineTo(kp[9].position.x, kp[9].position.y);
 
-            ctx.fillStyle = '#000';
-            ctx.strokeStyle = '#000';            
+            // right leg
+            // ctx.moveTo(kp[12].position.x, kp[12].position.y);
+            // ctx.lineTo(kp[14].position.x, kp[14].position.y);
+            // ctx.lineTo(kp[16].position.x, kp[16].position.y);
 
             ctx.stroke();
             
-            // right hand
             ctx.beginPath();
+            ctx.fillStyle = '#000';
+            ctx.arc(kp[10].position.x, kp[10].position.y, 10, 0, 2*Math.PI);
+            ctx.arc(kp[9].position.x, kp[9].position.y, 10, 0, 2*Math.PI);
+            ctx.fill();
 
             rightHandPosition.x = kp[10].position.x;
             rightHandPosition.y = kp[10].position.y;
@@ -281,11 +286,7 @@
             leftHandPosition.x = kp[9].position.x;
             leftHandPosition.y = kp[9].position.y;
 
-            ctx.arc(kp[10].position.x, kp[10].position.y, 10, 0, 2*Math.PI);
-            ctx.arc(kp[9].position.x, kp[9].position.y, 10, 0, 2*Math.PI);
-            ctx.fill();
-
-            if( aBox.direction === 'right' ) {
+            if ( aBox.direction === 'right' ) {
                 getDirection(rightHandPosition);
             } else {
                 getDirection(leftHandPosition);
@@ -295,146 +296,84 @@
             movements = [];
 
             aBox.updatePosition();
-            if(aBox.isFinished()) {
+            
+            if ( aBox.direction === 'right' ) {
+                tryToBreak(leftHandPosition);
+            } else {
+                tryToBreak(rightHandPosition);
+            }
+            if ( aBox.isOutOfScreen() ) {
                 aBox = new Box();
                 boxes++;
             }
 
-            if( aBox.direction === 'right' ) {
-                remove(leftHandPosition);
-            } else {
-                remove(rightHandPosition);
-            }
+            showGameData();
         }
 
-        function reset(e) {
+        function resetGame(e) {
             aBox = new Box();
         }
 
-        function remove(hand) {
+        function boxBroken() {
+            score++;
+            boxes++;
+            resetGame();
+        }
 
-            if( aBox.in === false 
+        function tryToBreak(hand) {
+
+            if( aBox.isHandInside === false 
                 && hand.y > aBox.y
                 && hand.y < aBox.y + aBox.h
                 && hand.x > aBox.x
                 && hand.x < aBox.x + aBox.w
                 ) {
-                aBox.in = true;
+                aBox.isHandInside = true;
             }
 
             if( aBox.breakDirection === 'toUp'
                 && aBox.isBreakable()
-                && aBox.in 
+                && aBox.isHandInside 
                 && direction === 'down'
                 && hand.y > aBox.y + aBox.h
                 && hand.x > aBox.x 
                 && hand.x < aBox.x + aBox.w
                 ) {
-                score++,
-                reset();
+                boxBroken();
             }
-
-            // if ( aBox.breakDirection === 'toDown' ) {
-                // if( aBox.in === false 
-                //     && rightHandPosition.y > aBox.y
-                //     && rightHandPosition.y < aBox.y + aBox.h
-                //     && direction === 'up'
-                //     ) {
-                //     aBox.in = true;
-                // }
-                
-            //     if( aBox.isBreakable() 
-            //         && aBox.in 
-            //         && direction === 'up'
-            //         && rightHandPosition.y < aBox.y
-            //         && rightHandPosition.x > aBox.x 
-            //         && rightHandPosition.x < aBox.x + aBox.w
-            //         ) {
-            //         score++,
-            //         reset();
-            //     }
-            // }
             
             if( aBox.breakDirection === 'toDown'
                 && aBox.isBreakable()
-                && aBox.in 
+                && aBox.isHandInside 
                 && direction === 'up'
                 && hand.y < aBox.y
                 && hand.x > aBox.x 
                 && hand.x < aBox.x + aBox.w
                 ) {
-                score++,
-                reset();
+                boxBroken();
             }
-
-            // --- //
-
-            // if ( aBox.breakDirection === 'toRight' ) {
-                // if( aBox.in === false 
-                //     && rightHandPosition.x > aBox.x
-                //     && rightHandPosition.x < aBox.x + aBox.w
-                //     && direction === 'left'
-                //     ) {
-                //     aBox.in = true;
-                // }
-                
-            //     if( aBox.isBreakable() 
-            //         && aBox.in 
-            //         && direction === 'left'
-            //         && rightHandPosition.x < aBox.x
-            //         && rightHandPosition.y > aBox.y 
-            //         && rightHandPosition.y < aBox.y + aBox.h
-            //         ) {
-            //         score++,
-            //         reset();
-            //     }
-            // }
 
             if( aBox.breakDirection === 'toRight'
                 && aBox.isBreakable()
-                && aBox.in 
+                && aBox.isHandInside 
                 && direction === 'left'
                 && hand.x < aBox.x
                 && hand.y > aBox.y 
                 && hand.y < aBox.y + aBox.h
                 ) {
-                score++,
-                reset();
+                boxBroken();
             }
-
-            // if ( aBox.breakDirection === 'toLeft' ) {
-                // if( aBox.in === false 
-                //     && rightHandPosition.x > aBox.x
-                //     && rightHandPosition.x < aBox.x + aBox.w
-                //     && direction === 'right'
-                //     ) {
-                //     aBox.in = true;
-                // }
-                
-            //     if( aBox.isBreakable() 
-            //         && aBox.in
-            //         && direction === 'right' 
-            //         && rightHandPosition.x > aBox.x + aBox.w
-            //         && rightHandPosition.y > aBox.y 
-            //         && rightHandPosition.y < (aBox.y + aBox.h)
-            //         ) {
-            //         score++,
-            //         reset();
-            //     }
-            // }
 
             if( aBox.breakDirection === 'toLeft'
                 && aBox.isBreakable()
-                && aBox.in 
+                && aBox.isHandInside 
                 && direction === 'right'
                 && hand.x > aBox.x + aBox.w
                 && hand.y > aBox.y 
                 && hand.y < aBox.y + aBox.h
                 ) {
-                score++,
-                reset();
+                boxBroken();
             }
-
         }
 
         posenet
@@ -447,8 +386,7 @@
                     .then(function(pose) {
                         draw(pose[0].keypoints);
                     });
-                }, 60);
-                
+                }, 60);   
             }
         )
         .catch(err => {
